@@ -1,7 +1,7 @@
 import { GoogleGenAI, Modality } from '@google/genai';
 import { AspectRatio } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY! });
 
 /**
  * Converts a file to a base64 string.

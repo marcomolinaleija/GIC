@@ -56,9 +56,6 @@ const Header: React.FC<HeaderProps> = ({ selectedVoice, setSelectedVoice, view, 
                     <button onClick={() => setView('editor')} className={`${navButtonStyle} ${view === 'editor' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>
                         Editar Imagen
                     </button>
-                    <button onClick={() => setView('live')} className={`${navButtonStyle} ${view === 'live' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>
-                        Conversación por Voz
-                    </button>
                     <button onClick={() => setView('faq')} className={`${navButtonStyle} ${view === 'faq' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>
                         Ayuda y FAQ
                     </button>

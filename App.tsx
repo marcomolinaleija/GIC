@@ -3,7 +3,6 @@ import Header from './components/Header';
 import ImageCreator from './components/ImageCreator';
 import ImageEditor from './components/ImageEditor';
 import FaqBot from './components/FaqBot';
-import LiveConversation from './components/LiveConversation'; // Importar el nuevo componente
 import { PREBUILT_VOICES } from './constants';
 import { View } from './types';
 
@@ -49,8 +48,6 @@ const App: React.FC = () => {
                 return <ImageEditor {...imageProps} />;
             case 'faq':
                 return <FaqBot />;
-            case 'live':
-                return <LiveConversation selectedVoice={selectedVoice} />;
             default:
                 return <ImageCreator {...imageProps} />;
         }
