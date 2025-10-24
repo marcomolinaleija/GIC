@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Blob as GenAiBlob } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, Blob as GenAiBlob, FunctionDeclaration, Type } from '@google/genai';
 import { decode, decodeAudioData, encode } from '../services/audioUtils';
-import { MicrophoneIcon, StopCircleIcon, PlayCircleIcon } from './Icons';
+import { generateImage } from '../services/geminiService';
+import { AspectRatio } from '../types';
+import { MicrophoneIcon, StopCircleIcon, PlayCircleIcon, DownloadIcon } from './Icons';
 
 // Polyfill for webkitAudioContext
 const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -10,6 +12,25 @@ interface LiveConversationProps {
     selectedVoice: string;
 }
 
+const generateImageFunctionDeclaration: FunctionDeclaration = {
+  name: 'generateImage',
+  description: 'Crea o genera una imagen a partir de una descripción de texto detallada y específica (prompt).',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      prompt: {
+        type: Type.STRING,
+        description: 'La descripción altamente detallada de la imagen a generar. Ejemplo: "Un majestuoso león con una melena dorada de pie en un acantilado rocoso al atardecer."',
+      },
+      aspectRatio: {
+        type: Type.STRING,
+        description: 'La proporción de aspecto de la imagen. Valores válidos son "1:1", "16:9", "9:16", "4:3", "3:4". El valor por defecto es "1:1".',
+      },
+    },
+    required: ['prompt'],
+  },
+};
+
 const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) => {
     const [isSessionActive, setIsSessionActive] = useState(false);
     const [transcriptionHistory, setTranscriptionHistory] = useState<string[]>([]);
@@ -17,6 +38,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) =>
     const [currentLiveOutput, setCurrentLiveOutput] = useState('');
     const [status, setStatus] = useState<'idle' | 'connecting' | 'active' | 'error'>('idle');
     const [error, setError] = useState<string | null>(null);
+    const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     
     const sessionPromiseRef = useRef<Promise<any> | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -85,6 +107,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) =>
         currentInputRef.current = '';
         currentOutputRef.current = '';
         setError(null);
+        setGeneratedImage(null);
         setStatus('connecting');
 
         try {
@@ -119,6 +142,41 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) =>
                         scriptProcessor.connect(inputAudioContextRef.current!.destination);
                     },
                     onmessage: async (message: LiveServerMessage) => {
+                        if (message.toolCall) {
+                            for (const fc of message.toolCall.functionCalls) {
+                                if (fc.name === 'generateImage') {
+                                    const { prompt, aspectRatio = '1:1' } = fc.args;
+                                    const sessionPromise = sessionPromiseRef.current;
+                                    
+                                    generateImage(prompt, aspectRatio as AspectRatio)
+                                        .then(imageUrl => {
+                                            setGeneratedImage(imageUrl);
+                                            sessionPromise?.then(session => {
+                                                session.sendToolResponse({
+                                                    functionResponses: {
+                                                        id: fc.id,
+                                                        name: fc.name,
+                                                        response: { result: "La imagen se ha generado y mostrado al usuario." },
+                                                    }
+                                                });
+                                            });
+                                        })
+                                        .catch(error => {
+                                            console.error("Error al generar imagen desde la voz:", error);
+                                            sessionPromise?.then(session => {
+                                                session.sendToolResponse({
+                                                    functionResponses: {
+                                                        id: fc.id,
+                                                        name: fc.name,
+                                                        response: { error: "Hubo un error al generar la imagen." },
+                                                    }
+                                                });
+                                            });
+                                        });
+                                }
+                            }
+                        }
+
                         const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData.data;
                         if (base64Audio && outputAudioContextRef.current) {
                             const ctx = outputAudioContextRef.current;
@@ -178,9 +236,13 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) =>
                     responseModalities: [Modality.AUDIO],
                     inputAudioTranscription: {},
                     outputAudioTranscription: {},
-                    // Use the selected voice from props
+                    tools: [{ functionDeclarations: [generateImageFunctionDeclaration] }],
                     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } } },
-                    systemInstruction: 'Eres un asistente creativo y útil. Ayuda al usuario a generar ideas para imágenes o a describirlas. Sé amigable y conversador.',
+                    systemInstruction: `Eres un asistente creativo y conversador especializado en la creación de imágenes. Tu objetivo principal es ayudar al usuario a construir una descripción de imagen rica y detallada a través del diálogo. Tienes una herramienta llamada \`generateImage\` que puede crear una imagen a partir de un texto.
+
+**Regla MUY IMPORTANTE:** NO llames a la función \`generateImage\` si el usuario te da una idea vaga o simplemente pide ayuda (ej. "crea una imagen de un coche", "ayúdame a hacer algo"). En su lugar, DEBES hacer preguntas para obtener más detalles. Pregunta sobre el sujeto, el entorno, los colores, el estilo, la iluminación, etc., para construir una descripción completa.
+
+Una vez que tengas una descripción detallada, confírmala con el usuario antes de llamar a la función \`generateImage\`. Por ejemplo, di: "Entendido, ¿quieres que genere una imagen de [descripción detallada] ahora?"`,
                 },
             });
         } catch (err) {
@@ -200,6 +262,17 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) =>
             data: encode(new Uint8Array(int16.buffer)),
             mimeType: 'audio/pcm;rate=16000',
         };
+    };
+
+    const handleDownload = () => {
+        if (generatedImage) {
+            const link = document.createElement('a');
+            link.href = generatedImage;
+            link.download = `imagen-generada-voz-${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     };
 
     return (
@@ -237,9 +310,6 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) =>
             
             <div
               className="mt-6 p-4 bg-gray-800 border border-gray-700 rounded-lg min-h-[200px]"
-              aria-live="polite"
-              aria-atomic="false"
-              aria-relevant="additions"
             >
               <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><MicrophoneIcon /> Transcripción en vivo</h3>
               <div className="space-y-2">
@@ -252,6 +322,28 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ selectedVoice }) =>
                 {currentLiveOutput && <p>Asistente: {currentLiveOutput}</p>}
               </div>
             </div>
+
+            {generatedImage && (
+                <div className="mt-8 text-center">
+                    <h3 className="text-2xl font-semibold mb-4">Imagen Generada por Voz:</h3>
+                    <div className="inline-block relative">
+                        <img
+                            src={generatedImage}
+                            alt="Imagen generada a través de la conversación por voz"
+                            className="rounded-lg border-4 border-indigo-500 max-w-full sm:max-w-md md:max-w-lg mx-auto"
+                        />
+                    </div>
+                    <div className="mt-4 flex justify-center">
+                        <button
+                            onClick={handleDownload}
+                            className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700"
+                        >
+                            <DownloadIcon />
+                            Descargar Imagen
+                        </button>
+                    </div>
+                </div>
+            )}
         </section>
     );
 };

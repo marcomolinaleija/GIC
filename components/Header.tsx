@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ selectedVoice, setSelectedVoice, view, 
         }
     };
     
-    const navButtonStyle = "px-4 py-2 rounded-lg font-semibold transition-colors duration-200";
+    const navButtonStyle = "px-4 py-2 rounded-lg font-semibold transition-colors duration-200 text-sm";
     const activeNavButtonStyle = "bg-indigo-600 text-white";
     const inactiveNavButtonStyle = "bg-gray-700 hover:bg-gray-600 text-gray-200";
 
@@ -55,6 +55,9 @@ const Header: React.FC<HeaderProps> = ({ selectedVoice, setSelectedVoice, view, 
                     </button>
                     <button onClick={() => setView('editor')} className={`${navButtonStyle} ${view === 'editor' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>
                         Editar Imagen
+                    </button>
+                    <button onClick={() => setView('live')} className={`${navButtonStyle} ${view === 'live' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>
+                        Conversación por Voz
                     </button>
                     <button onClick={() => setView('faq')} className={`${navButtonStyle} ${view === 'faq' ? activeNavButtonStyle : inactiveNavButtonStyle}`}>
                         Ayuda y FAQ

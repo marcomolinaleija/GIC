@@ -3,6 +3,7 @@ import Header from './components/Header';
 import ImageCreator from './components/ImageCreator';
 import ImageEditor from './components/ImageEditor';
 import FaqBot from './components/FaqBot';
+import LiveConversation from './components/LiveConversation'; // Importar el nuevo componente
 import { PREBUILT_VOICES } from './constants';
 import { View } from './types';
 
@@ -35,7 +36,7 @@ const App: React.FC = () => {
     };
 
     const renderView = () => {
-        const props = {
+        const imageProps = {
             selectedVoice,
             generationCount,
             dailyLimit: DAILY_LIMIT,
@@ -43,13 +44,15 @@ const App: React.FC = () => {
         };
         switch (view) {
             case 'creator':
-                return <ImageCreator {...props} />;
+                return <ImageCreator {...imageProps} />;
             case 'editor':
-                return <ImageEditor {...props} />;
+                return <ImageEditor {...imageProps} />;
             case 'faq':
                 return <FaqBot />;
+            case 'live':
+                return <LiveConversation selectedVoice={selectedVoice} />;
             default:
-                return <ImageCreator {...props} />;
+                return <ImageCreator {...imageProps} />;
         }
     };
 

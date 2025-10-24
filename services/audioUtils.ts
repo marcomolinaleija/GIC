@@ -27,7 +27,6 @@ export async function decodeAudioData(
     return buffer;
 }
 
-// FIX: Added and exported the encode function required by the Live API.
 export function encode(bytes: Uint8Array) {
   let binary = '';
   const len = bytes.byteLength;
