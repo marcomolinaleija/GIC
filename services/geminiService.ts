@@ -1,5 +1,6 @@
 
-import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveSessionCallbacks } from "@google/genai";
+
+import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveCallbacks } from "@google/genai";
 import { AspectRatio, ChatMessage } from "../types";
 import { APP_CONTEXT_DATA } from "../constants";
 
@@ -157,8 +158,8 @@ PREGUNTA DEL USUARIO:
     return result.text;
 };
 
-// FIX: Implement and export `createLiveSession` for real-time conversation.
-export const createLiveSession = (callbacks: LiveSessionCallbacks, voiceName: string): Promise<LiveSession> => {
+// FIX: Add createLiveSession function to handle live conversations
+export const createLiveSession = (callbacks: LiveCallbacks, selectedVoice: string): Promise<LiveSession> => {
     const ai = getAi();
     return ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
@@ -166,7 +167,7 @@ export const createLiveSession = (callbacks: LiveSessionCallbacks, voiceName: st
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
             },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
