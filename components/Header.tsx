@@ -25,6 +25,9 @@ const Header: React.FC<HeaderProps> = ({ currentView, onNavigate }) => {
                     <button onClick={() => onNavigate('editor')} className={navLinkClasses('editor')}>
                         Editar
                     </button>
+                    <button onClick={() => onNavigate('explorer')} className={navLinkClasses('explorer')}>
+                        Explorar
+                    </button>
                     <button onClick={() => onNavigate('faq')} className={navLinkClasses('faq')}>
                         Ayuda
                     </button>

@@ -3,6 +3,7 @@ import Header from './components/Header';
 import ImageCreator from './components/ImageCreator';
 import ImageEditor from './components/ImageEditor';
 import FaqBot from './components/FaqBot';
+import ImageExplorer from './components/ImageExplorer';
 import { View } from './types';
 
 const App: React.FC = () => {
@@ -17,6 +18,7 @@ const App: React.FC = () => {
             <main className="container mx-auto p-4 md:p-8">
                 {view === 'creator' && <ImageCreator />}
                 {view === 'editor' && <ImageEditor />}
+                {view === 'explorer' && <ImageExplorer />}
                 {view === 'faq' && <FaqBot />}
             </main>
         </div>

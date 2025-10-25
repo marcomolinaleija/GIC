@@ -99,6 +99,33 @@ export const describeImage = async (imageData: string, mimeType: string): Promis
     }
 };
 
+export const askAboutImage = async (imageData: string, mimeType: string, question: string): Promise<string | null> => {
+    const ai = getAi();
+    const base64ImageData = imageData.split(',')[1];
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            data: base64ImageData,
+                            mimeType: mimeType,
+                        },
+                    },
+                    {
+                        text: question,
+                    },
+                ]
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error asking about image:", error);
+        return null;
+    }
+}
+
 export const generateFaqResponse = async (question: string, history: ChatMessage[]): Promise<string> => {
     const ai = getAi();
     
