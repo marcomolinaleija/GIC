@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { describeImage, askAboutImage } from '../services/geminiService';
 import Spinner from './Spinner';
-import { PaperAirplaneIcon } from './Icons';
+import { PaperAirplaneIcon, TrashIcon } from './Icons';
 import { UploadedImage, ChatMessage } from '../types';
 
 const ImageExplorer: React.FC = () => {
@@ -20,6 +20,45 @@ const ImageExplorer: React.FC = () => {
 
     useEffect(scrollToBottom, [messages]);
 
+    // Cargar historial del localStorage al montar el componente
+    useEffect(() => {
+        try {
+            const savedState = localStorage.getItem('explorerHistory');
+            if (savedState) {
+                const { image: savedImage, messages: savedMessages } = JSON.parse(savedState);
+                if (savedImage && savedMessages) {
+                    setImage(savedImage);
+                    setMessages(savedMessages);
+                }
+            }
+        } catch (error) {
+            console.error("Fallo al cargar el historial del explorador desde localStorage", error);
+        }
+    }, []);
+
+    // Guardar historial en localStorage cuando cambie
+    useEffect(() => {
+        if (image && messages.length > 0) {
+            try {
+                const stateToSave = JSON.stringify({ image, messages });
+                localStorage.setItem('explorerHistory', stateToSave);
+            } catch (error) {
+                console.error("Fallo al guardar el historial del explorador en localStorage", error);
+            }
+        }
+    }, [image, messages]);
+
+    const handleClearConversation = () => {
+        setImage(null);
+        setMessages([]);
+        setError(null);
+        setInput('');
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+        localStorage.removeItem('explorerHistory');
+    };
+
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file || !file.type.startsWith('image/')) {
@@ -27,8 +66,8 @@ const ImageExplorer: React.FC = () => {
             return;
         }
         
-        setError(null);
-        setMessages([]);
+        handleClearConversation(); // Limpiar el estado anterior al subir una nueva imagen
+
         const reader = new FileReader();
         reader.onload = async (e) => {
             const dataUrl = e.target?.result as string;
@@ -105,7 +144,7 @@ const ImageExplorer: React.FC = () => {
                             onClick={() => fileInputRef.current?.click()}
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center"
                         >
-                            Subir Imagen
+                            Subir Imagen Nueva
                         </button>
                         <input
                             type="file"
@@ -117,6 +156,17 @@ const ImageExplorer: React.FC = () => {
                     </div>
                     {/* Chat Column */}
                     <div className="flex flex-col bg-gray-900 rounded-lg h-[50vh] md:h-auto">
+                        <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+                            <h2 className="text-xl font-semibold">Conversación</h2>
+                            <button
+                                onClick={handleClearConversation}
+                                className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700"
+                                aria-label="Limpiar conversación e imagen"
+                                title="Limpiar conversación e imagen"
+                            >
+                                <TrashIcon />
+                            </button>
+                        </div>
                          <div className="flex-grow overflow-y-auto p-4 flex flex-col space-y-4">
                             {messages.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>

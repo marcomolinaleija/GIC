@@ -3,7 +3,7 @@ import { generateFaqResponse } from '../services/geminiService';
 import { FAQ_DATA } from '../constants';
 import { ChatMessage } from '../types';
 import Spinner from './Spinner';
-import { PaperAirplaneIcon } from './Icons';
+import { PaperAirplaneIcon, TrashIcon } from './Icons';
 
 interface FaqBotProps {}
 
@@ -19,16 +19,46 @@ const FaqBot: React.FC<FaqBotProps> = () => {
 
     useEffect(scrollToBottom, [messages]);
 
+    // Cargar historial del localStorage al montar el componente
+    useEffect(() => {
+        try {
+            const savedMessages = localStorage.getItem('faqHistory');
+            if (savedMessages) {
+                setMessages(JSON.parse(savedMessages));
+            }
+        } catch (error) {
+            console.error("Fallo al cargar el historial de FAQ desde localStorage", error);
+        }
+    }, []);
+
+    // Guardar historial en localStorage cuando cambie
+    useEffect(() => {
+        if (messages.length > 0) {
+            try {
+                localStorage.setItem('faqHistory', JSON.stringify(messages));
+            } catch (error) {
+                console.error("Fallo al guardar el historial de FAQ en localStorage", error);
+            }
+        } else {
+             localStorage.removeItem('faqHistory');
+        }
+    }, [messages]);
+    
+    const handleClearConversation = () => {
+        setMessages([]);
+        // El useEffect se encargará de removerlo del localStorage
+    };
+
     const handleSend = async () => {
         if (!input.trim()) return;
         const userMessage: ChatMessage = { role: 'user', text: input };
-        setMessages(prev => [...prev, userMessage]);
+        const newMessages = [...messages, userMessage];
+        setMessages(newMessages);
         setInput('');
         setIsLoading(true);
 
         try {
-            const history = [...messages, userMessage];
-            const responseText = await generateFaqResponse(input, history);
+            const responseText = await generateFaqResponse(input, newMessages);
             const modelMessage: ChatMessage = { role: 'model', text: responseText };
             setMessages(prev => [...prev, modelMessage]);
         } catch (error) {
@@ -49,8 +79,18 @@ const FaqBot: React.FC<FaqBotProps> = () => {
             <h1 id="faq-title" className="text-3xl font-bold mb-6 text-center">Asistente de Ayuda (FAQ)</h1>
             <div className="bg-gray-800 rounded-lg shadow-lg max-w-4xl mx-auto flex flex-col h-[70vh]">
                 <div className="p-4 border-b border-gray-700">
-                    <h2 className="text-xl font-semibold">Preguntas Frecuentes</h2>
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                     <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-xl font-semibold">Preguntas Frecuentes</h2>
+                        <button
+                            onClick={handleClearConversation}
+                            className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700"
+                            aria-label="Limpiar historial de conversación"
+                            title="Limpiar historial de conversación"
+                        >
+                            <TrashIcon />
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {FAQ_DATA.map((item) => (
                             <button
                                 key={item.question}

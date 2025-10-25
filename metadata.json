@@ -1,5 +1,5 @@
 {
-  "name": "Asistente Creativo de Imágenes Accesible",
+  "name": "GIC",
   "description": "Una aplicación de creación y edición de imágenes totalmente accesible, impulsada por Gemini. Interactúa a través de chat de texto para crear, editar y obtener ayuda.",
   "requestFramePermissions": []
 }
