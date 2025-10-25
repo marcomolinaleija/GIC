@@ -1,7 +1,5 @@
 {
   "name": "Asistente Creativo de Imágenes Accesible",
-  "description": "Una aplicación de creación y edición de imágenes totalmente accesible, impulsada por Gemini. Interactúa a través de chat con respuestas de voz o conversaciones de voz naturales para crear y editar imágenes. Incluye una sección de ayuda con un chatbot de texto.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "description": "Una aplicación de creación y edición de imágenes totalmente accesible, impulsada por Gemini. Interactúa a través de chat de texto para crear, editar y obtener ayuda.",
+  "requestFramePermissions": []
 }

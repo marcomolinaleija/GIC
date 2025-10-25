@@ -1,226 +1,235 @@
 import React, { useState, useRef } from 'react';
-import { analyzeImage, editImage, textToSpeech } from '../services/geminiService';
+import { editImage, describeImage } from '../services/geminiService';
 import Spinner from './Spinner';
-import { decode, decodeAudioData } from '../services/audioUtils';
-import { DownloadIcon } from './Icons';
-
-// Polyfill for webkitAudioContext
-const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+import { DownloadIcon, CloseIcon } from './Icons';
+import { UploadedImage } from '../types';
 
 interface ImageEditorProps {
-    selectedVoice: string;
-    generationCount: number;
-    dailyLimit: number;
-    onGenerationSuccess: () => void;
+    speak: (text: string) => void;
 }
 
-const ImageEditor: React.FC<ImageEditorProps> = ({ selectedVoice, generationCount, dailyLimit, onGenerationSuccess }) => {
-    const [file, setFile] = useState<File | null>(null);
-    const [preview, setPreview] = useState<string | null>(null);
+const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
     const [prompt, setPrompt] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [loadingMessage, setLoadingMessage] = useState('');
-    const [error, setError] = useState<string | null>(null);
+    const [originalImages, setOriginalImages] = useState<UploadedImage[]>([]);
     const [editedImage, setEditedImage] = useState<string | null>(null);
-    const [imageDescription, setImageDescription] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isDescribing, setIsDescribing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [description, setDescription] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const isLimitReached = generationCount >= dailyLimit;
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
 
-    const playAudio = async (text: string) => {
-        try {
-            const audioContent = await textToSpeech(text, selectedVoice);
-            if (audioContent) {
-                const audioContext = new AudioContext({ sampleRate: 24000 });
-                const audioBytes = decode(audioContent);
-                const audioBuffer = await decodeAudioData(audioBytes, audioContext, 24000, 1);
-                const source = audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
-                source.start();
-            }
-        } catch (audioError) {
-            console.error("Error al reproducir audio:", audioError);
-        }
-    };
-
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            setFile(selectedFile);
-            setPreview(URL.createObjectURL(selectedFile));
-            setEditedImage(null);
-            setError(null);
-            setPrompt('');
-            setImageDescription(null);
-            
-            setIsLoading(true);
-            setLoadingMessage('Analizando imagen...');
-            await playAudio('Imagen cargada. Analizando contenido, por favor espera.');
-
-            try {
-                const description = await analyzeImage(selectedFile);
-                setImageDescription(description);
-                await playAudio(`Análisis completado. Ahora puedes leer la descripción y escribir tus instrucciones de edición.`);
-            } catch (err) {
-                const errorMessage = 'No se pudo analizar la imagen.';
-                setError(errorMessage);
-                await playAudio(errorMessage);
-            } finally {
-                setIsLoading(false);
-                setLoadingMessage('');
-            }
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (isLimitReached) {
-            setError('Has alcanzado el límite de 5 generaciones de imágenes por hoy.');
-            return;
-        }
-        if (!file || !prompt.trim()) {
-            setError('Por favor, sube una imagen y escribe una instrucción de edición.');
-            return;
-        }
-        setIsLoading(true);
-        setLoadingMessage('Editando imagen...');
         setError(null);
         setEditedImage(null);
 
+        const filesArray = Array.from(files);
+
+        // FIX: Explicitly type 'file' as 'File' to prevent TypeScript from inferring it as 'unknown'.
+        const imageFiles = filesArray.filter((file: File) => {
+            if (!file.type.startsWith('image/')) {
+                const newError = `${file.name} no es un archivo de imagen válido.`;
+                setError(prev => prev ? `${prev}\n${newError}`: newError);
+                return false;
+            }
+            return true;
+        });
+
+        if (imageFiles.length === 0) return;
+        
+        let processedCount = 0;
+        const currentImages = [...originalImages];
+
+        imageFiles.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target?.result as string;
+                currentImages.push({
+                    dataUrl,
+                    mimeType: file.type,
+                    name: file.name,
+                });
+                processedCount++;
+                if (processedCount === imageFiles.length) {
+                    setOriginalImages(currentImages);
+                    if (currentImages.length === 1) {
+                        describeSingleImage(currentImages[0]);
+                    } else {
+                        setDescription(null);
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const describeSingleImage = async (image: UploadedImage) => {
+        setDescription(null);
+        setIsDescribing(true);
+        speak("Analizando la imagen subida.");
         try {
-            await playAudio("Aplicando los cambios solicitados. Esto podría tardar un momento.");
-            const imageUrl = await editImage(prompt, file);
-            setEditedImage(imageUrl);
-            onGenerationSuccess();
-            await playAudio(`¡Edición completada! La imagen ha sido modificada.`);
+            const descriptionResult = await describeImage(image.dataUrl, image.mimeType);
+            if (descriptionResult) {
+                setDescription(descriptionResult);
+                speak("Descripción de la imagen lista.");
+            } else {
+                const descError = "No se pudo obtener una descripción para la imagen.";
+                setDescription(descError);
+                speak(descError);
+            }
         } catch (err) {
-            const errorMessage = 'Hubo un error al editar la imagen. Por favor, intenta de nuevo.';
+            console.error("Error describing image:", err);
+            const descError = "Ocurrió un error al analizar la imagen.";
+            setDescription(descError);
+            speak(descError);
+        } finally {
+            setIsDescribing(false);
+        }
+    };
+    
+    const handleRemoveImage = (indexToRemove: number) => {
+        const newImages = originalImages.filter((_, index) => index !== indexToRemove);
+        setOriginalImages(newImages);
+        if (newImages.length === 1) {
+            describeSingleImage(newImages[0]);
+        } else {
+            setDescription(null);
+        }
+    };
+
+    const handleEdit = async () => {
+        if (originalImages.length === 0) {
+            setError("Por favor, primero sube una o más imágenes.");
+            return;
+        }
+        if (!prompt.trim()) {
+            setError("Por favor, escribe las instrucciones para editar la imagen.");
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        setEditedImage(null);
+        speak("Aplicando tus cambios a las imágenes.");
+        try {
+            const imagesToProcess = originalImages.map(img => ({
+                imageData: img.dataUrl,
+                mimeType: img.mimeType,
+            }));
+            const imageUrl = await editImage(prompt, imagesToProcess);
+            if (imageUrl) {
+                setEditedImage(imageUrl);
+                speak("¡Tu imagen ha sido editada exitosamente!");
+            } else {
+                throw new Error("No se recibió ninguna imagen editada.");
+            }
+        } catch (err) {
+            console.error(err);
+            const errorMessage = "Lo siento, ha ocurrido un error al editar la imagen. Por favor, inténtalo de nuevo.";
             setError(errorMessage);
-            await playAudio(errorMessage);
+            speak(errorMessage);
         } finally {
             setIsLoading(false);
-            setLoadingMessage('');
         }
     };
-
-    const handleDownload = () => {
-        if (editedImage) {
-            const link = document.createElement('a');
-            link.href = editedImage;
-            link.download = `imagen-editada-${Date.now()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    };
-
-
+    
     return (
         <section aria-labelledby="editor-title">
-            <h2 id="editor-title" className="text-3xl font-bold mb-4 text-indigo-400">Editar Imagen</h2>
-            <p className="mb-6 text-gray-300">
-                Sube una imagen, lee su descripción y luego dile al asistente cómo quieres modificarla.
-            </p>
-
-            <div className="mb-6">
-                <label htmlFor="file-upload" className="block text-lg font-medium text-gray-200 mb-2">
-                    1. Sube tu imagen:
-                </label>
-                <input
-                    id="file-upload"
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    disabled={isLoading}
-                />
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading}
-                    className="px-6 py-3 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 disabled:bg-gray-500 disabled:cursor-not-allowed"
-                >
-                    Seleccionar Archivo
-                </button>
-                {file && <span className="ml-4 text-gray-300">{file.name}</span>}
-            </div>
-
-            {preview && (
-                <div className="grid md:grid-cols-2 gap-8 mb-6">
-                    <div>
-                        <h3 className="text-xl font-semibold mb-2">Imagen Original:</h3>
-                        <img 
-                            src={preview} 
-                            alt="Previsualización de la imagen a editar" 
-                            className="rounded-lg border-4 border-gray-600"
-                            aria-describedby="image-description"
+            <h1 id="editor-title" className="text-3xl font-bold mb-6 text-center">Editor de Imágenes con IA</h1>
+            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Input Column */}
+                    <div className="flex flex-col space-y-4">
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isDescribing || isLoading}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-opacity disabled:opacity-50"
+                        >
+                            {isDescribing ? <><Spinner/> Analizando...</> : '1. Subir Imagen(es)'}
+                        </button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            accept="image/*"
+                            className="hidden"
+                            multiple
                         />
-                         {imageDescription && !isLoading && (
-                            <div className="mt-4">
-                                <h4 className="text-lg font-semibold mb-2 text-gray-200">Descripción de la imagen:</h4>
-                                <p id="image-description" className="bg-gray-800 p-3 rounded-lg border border-gray-700 text-gray-300">
-                                    {imageDescription}
+                        {originalImages.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-gray-700 rounded-lg p-2">
+                                {originalImages.map((image, index) => (
+                                    <div key={`${image.name}-${index}`} className="relative group">
+                                        <img src={image.dataUrl} alt={`Original ${index + 1}: ${image.name}`} className="rounded-md w-full h-24 object-cover" />
+                                        <button
+                                            onClick={() => handleRemoveImage(index)}
+                                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 opacity-75 group-hover:opacity-100 transition-opacity"
+                                            aria-label={`Quitar imagen ${index + 1}`}
+                                        >
+                                            <CloseIcon />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center bg-gray-700 rounded-lg min-h-[150px] p-2">
+                                <p className="text-gray-400 text-center">Las imágenes que subas aparecerán aquí.</p>
+                            </div>
+                        )}
+                        {isDescribing && <div className="flex items-center justify-center p-3 rounded-md text-gray-300"><Spinner /><span className="ml-2">Analizando...</span></div>}
+                        {description && originalImages.length === 1 && (
+                            <div className="bg-gray-900 p-3 rounded-md">
+                                <p className="text-sm text-gray-300">
+                                    <strong className="font-semibold text-white block mb-1">Descripción de la Imagen:</strong>
+                                    {description}
                                 </p>
                             </div>
                         )}
-                    </div>
-                    {editedImage && (
-                        <div>
-                            <h3 className="text-xl font-semibold mb-2">Imagen Editada:</h3>
-                            <img src={editedImage} alt={`Resultado de la edición: ${prompt}`} className="rounded-lg border-4 border-indigo-500" />
-                             <button
-                                onClick={handleDownload}
-                                className="mt-4 flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700"
-                            >
-                                <DownloadIcon />
-                                Descargar Imagen Editada
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-            
-            {file && !editedImage && (
-                <form onSubmit={handleSubmit} className="max-w-2xl">
-                    <div className="mb-4">
-                        <label htmlFor="edit-prompt-input" className="block text-lg font-medium text-gray-200 mb-2">
-                            2. Describe los cambios:
+                         <label htmlFor="edit-prompt" className="block text-sm font-medium text-gray-300">
+                            2. Describe la edición que quieres hacer:
                         </label>
                         <textarea
-                            id="edit-prompt-input"
+                            id="edit-prompt"
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
-                            placeholder="Ej: Añade un sombrero de pirata al perro."
-                            className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500"
+                            placeholder="Ej: Pon a la persona de la primera imagen en el paisaje de la segunda..."
+                            className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 focus:ring-blue-500 focus:border-blue-500"
                             rows={3}
-                            disabled={isLoading || isLimitReached}
+                            disabled={originalImages.length === 0 || isLoading || isDescribing}
                         />
+                        <button
+                            onClick={handleEdit}
+                            disabled={isLoading || originalImages.length === 0 || isDescribing}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-opacity disabled:opacity-50"
+                        >
+                            {isLoading ? <><Spinner /> Editando...</> : '3. Editar Imagen'}
+                        </button>
                     </div>
-                    <button
-                        type="submit"
-                        disabled={isLoading || !prompt.trim() || isLimitReached}
-                        className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                    >
-                        {isLoading && loadingMessage === 'Editando imagen...' ? <span className="flex items-center"><Spinner /> <span className="ml-2">{loadingMessage}</span></span> : 'Editar Imagen'}
-                    </button>
-                    <div className="mt-2 text-sm text-gray-400">
-                        {isLimitReached
-                            ? 'Has alcanzado el límite diario de generaciones.'
-                            : `Te quedan ${dailyLimit - generationCount} de ${dailyLimit} generaciones hoy.`}
+                    {/* Output Column */}
+                    <div className="flex items-center justify-center bg-gray-700 rounded-lg min-h-[300px]">
+                        {isLoading && <Spinner />}
+                        {error && <p className="text-red-500 text-center p-4 whitespace-pre-line">{error}</p>}
+                        {editedImage && (
+                            <div className="relative group">
+                                <img src={editedImage} alt={`Editado: ${prompt}`} className="rounded-lg max-w-full max-h-[400px]" />
+                                 <a
+                                    href={editedImage}
+                                    download="edited-image.png"
+                                    className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    aria-label="Descargar imagen editada"
+                                >
+                                    <DownloadIcon />
+                                </a>
+                            </div>
+                        )}
+                        {!isLoading && !editedImage && !error && <p className="text-gray-400">La imagen editada aparecerá aquí.</p>}
                     </div>
-                </form>
-            )}
-
-            {isLoading && (
-                 <div className="mt-6 flex items-center gap-2"><Spinner /> <span className="ml-2">{loadingMessage || 'Procesando...'}</span></div>
-            )}
-
-            {error && (
-                <div className="mt-6 p-4 bg-red-900/50 border border-red-700 text-red-300 rounded-lg max-w-2xl" role="alert">
-                  {error}
                 </div>
-            )}
+            </div>
         </section>
     );
 };

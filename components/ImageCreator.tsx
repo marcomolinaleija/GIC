@@ -1,164 +1,118 @@
 import React, { useState } from 'react';
-import { generateImage, textToSpeech } from '../services/geminiService';
-import { AspectRatio } from '../types';
+import { generateImage } from '../services/geminiService';
 import Spinner from './Spinner';
-import { decode, decodeAudioData } from '../services/audioUtils';
 import { DownloadIcon } from './Icons';
-
-// Polyfill for webkitAudioContext
-const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+import { AspectRatio } from '../types';
 
 interface ImageCreatorProps {
-    selectedVoice: string;
-    generationCount: number;
-    dailyLimit: number;
-    onGenerationSuccess: () => void;
+    speak: (text: string) => void;
 }
 
-const ImageCreator: React.FC<ImageCreatorProps> = ({ selectedVoice, generationCount, dailyLimit, onGenerationSuccess }) => {
+const aspectRatios: { value: AspectRatio, label: string }[] = [
+    { value: '1:1', label: 'Cuadrado (1:1)' },
+    { value: '16:9', label: 'Paisaje (16:9)' },
+    { value: '9:16', label: 'Retrato (9:16)' },
+    { value: '4:3', label: 'Estándar (4:3)' },
+    { value: '3:4', label: 'Vertical (3:4)' },
+];
+
+const ImageCreator: React.FC<ImageCreatorProps> = ({ speak }) => {
     const [prompt, setPrompt] = useState('');
     const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+    const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
-    const isLimitReached = generationCount >= dailyLimit;
-
-    const playAudio = async (text: string) => {
-        try {
-            const audioContent = await textToSpeech(text, selectedVoice);
-            if (audioContent) {
-                const audioContext = new AudioContext({ sampleRate: 24000 });
-                const audioBytes = decode(audioContent);
-                const audioBuffer = await decodeAudioData(audioBytes, audioContext, 24000, 1);
-                const source = audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
-                source.start();
-            }
-        } catch (audioError) {
-            console.error("Error al reproducir audio:", audioError);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (isLimitReached) {
-            setError('Has alcanzado el límite de 5 generaciones de imágenes por hoy.');
-            return;
-        }
+    const handleGenerate = async () => {
         if (!prompt.trim()) {
-            setError('Por favor, introduce una descripción para la imagen.');
+            setError("Por favor, escribe una descripción para la imagen.");
             return;
         }
         setIsLoading(true);
         setError(null);
         setGeneratedImage(null);
-
+        speak("Generando tu imagen. Por favor, espera.");
+        
         try {
-            await playAudio("Generando una imagen con la descripción proporcionada. Por favor, espera.");
             const imageUrl = await generateImage(prompt, aspectRatio);
-            setGeneratedImage(imageUrl);
-            onGenerationSuccess();
-            await playAudio(`¡Imagen generada! Se ha creado una imagen basada en tu descripción.`);
+            if (imageUrl) {
+                setGeneratedImage(imageUrl);
+                speak("¡Tu imagen ha sido creada exitosamente!");
+            } else {
+                throw new Error("No se recibió ninguna imagen.");
+            }
         } catch (err) {
-            const errorMessage = 'Hubo un error al generar la imagen. Por favor, intenta de nuevo.';
+            console.error(err);
+            const errorMessage = "Lo siento, ha ocurrido un error al generar la imagen. Por favor, inténtalo de nuevo.";
             setError(errorMessage);
-            await playAudio(errorMessage);
+            speak(errorMessage);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleDownload = () => {
-        if (generatedImage) {
-            const link = document.createElement('a');
-            link.href = generatedImage;
-            link.download = `imagen-generada-${Date.now()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    };
-
     return (
         <section aria-labelledby="creator-title">
-            <h2 id="creator-title" className="text-3xl font-bold mb-4 text-indigo-400">Crear Imagen</h2>
-            <p className="mb-6 text-gray-300">
-                Describe la imagen que quieres crear. Sé lo más detallado posible para obtener los mejores resultados.
-            </p>
-            <form onSubmit={handleSubmit} className="max-w-2xl">
-                <div className="mb-4">
-                    <label htmlFor="prompt-input" className="block text-lg font-medium text-gray-200 mb-2">
-                        Descripción de la imagen:
-                    </label>
-                    <textarea
-                        id="prompt-input"
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        placeholder="Ej: Un gato astronauta con un casco de cristal, flotando en el espacio profundo con nebulosas de colores de fondo."
-                        className="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        rows={3}
-                        disabled={isLoading || isLimitReached}
-                    />
-                </div>
-                <div className="mb-6">
-                    <label htmlFor="aspect-ratio-select" className="block text-lg font-medium text-gray-200 mb-2">
-                        Proporción de aspecto:
-                    </label>
-                    <select
-                        id="aspect-ratio-select"
-                        value={aspectRatio}
-                        onChange={(e) => setAspectRatio(e.target.value as AspectRatio)}
-                        className="bg-gray-800 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500"
-                        disabled={isLoading || isLimitReached}
-                    >
-                        <option value="1:1">Cuadrado (1:1)</option>
-                        <option value="16:9">Horizontal (16:9)</option>
-                        <option value="9:16">Vertical (9:16)</option>
-                        <option value="4:3">Paisaje (4:3)</option>
-                        <option value="3:4">Retrato (3:4)</option>
-                    </select>
-                </div>
-                <button
-                    type="submit"
-                    disabled={isLoading || !prompt.trim() || isLimitReached}
-                    className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                >
-                    {isLoading ? <span className="flex items-center"><Spinner /> <span className="ml-2">Generando...</span></span> : 'Generar Imagen'}
-                </button>
-                <div className="mt-2 text-sm text-gray-400">
-                    {isLimitReached
-                        ? 'Has alcanzado el límite diario de generaciones.'
-                        : `Te quedan ${dailyLimit - generationCount} de ${dailyLimit} generaciones hoy.`}
-                </div>
-            </form>
-
-            {error && (
-                <div className="mt-6 p-4 bg-red-900/50 border border-red-700 text-red-300 rounded-lg max-w-2xl" role="alert">
-                  {error}
-                </div>
-            )}
-
-            {generatedImage && (
-                <div className="mt-8 max-w-2xl">
-                    <h3 className="text-2xl font-semibold mb-4">Imagen Generada:</h3>
-                    <div className="relative group">
-                        <img
-                            src={generatedImage}
-                            alt={prompt}
-                            className="rounded-lg border-4 border-indigo-500"
-                        />
+            <h1 id="creator-title" className="text-3xl font-bold mb-6 text-center">Creador de Imágenes con IA</h1>
+            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div className="mb-4">
+                            <label htmlFor="prompt-input" className="block text-sm font-medium text-gray-300 mb-2">
+                                Describe la imagen que quieres crear:
+                            </label>
+                            <textarea
+                                id="prompt-input"
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                placeholder="Ej: Un gato astronauta flotando en el espacio..."
+                                className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 focus:ring-blue-500 focus:border-blue-500"
+                                rows={4}
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label htmlFor="aspect-ratio-select" className="block text-sm font-medium text-gray-300 mb-2">
+                                Proporción de Aspecto:
+                            </label>
+                            <select
+                                id="aspect-ratio-select"
+                                value={aspectRatio}
+                                onChange={(e) => setAspectRatio(e.target.value as AspectRatio)}
+                                className="w-full bg-gray-700 border border-gray-600 rounded-lg p-3 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                                {aspectRatios.map(ratio => (
+                                    <option key={ratio.value} value={ratio.value}>{ratio.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isLoading}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-opacity disabled:opacity-50"
+                        >
+                            {isLoading ? <><Spinner /> Generando...</> : 'Generar Imagen'}
+                        </button>
                     </div>
-                    <button
-                        onClick={handleDownload}
-                        className="mt-4 flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700"
-                    >
-                        <DownloadIcon />
-                        Descargar Imagen
-                    </button>
+                    <div className="flex items-center justify-center bg-gray-700 rounded-lg min-h-[300px]">
+                        {isLoading && <Spinner />}
+                        {error && <p className="text-red-500 text-center p-4">{error}</p>}
+                        {generatedImage && (
+                            <div className="relative group">
+                                <img src={generatedImage} alt={prompt} className="rounded-lg max-w-full max-h-[400px]" />
+                                <a
+                                    href={generatedImage}
+                                    download="generated-image.jpg"
+                                    className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    aria-label="Descargar imagen"
+                                >
+                                    <DownloadIcon />
+                                </a>
+                            </div>
+                        )}
+                        {!isLoading && !generatedImage && !error && <p className="text-gray-400">La imagen aparecerá aquí.</p>}
+                    </div>
                 </div>
-            )}
+            </div>
         </section>
     );
 };

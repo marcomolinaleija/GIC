@@ -1,148 +1,161 @@
-import { GoogleGenAI, Modality } from '@google/genai';
-import { AspectRatio } from '../types';
+import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveSessionCallbacks } from "@google/genai";
+import { AspectRatio, ChatMessage } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY! });
+const getAi = () => {
+    // Per guidelines, create a new instance before API calls to use the latest key.
+    return new GoogleGenAI({ apiKey: process.env.API_KEY! });
+}
 
-/**
- * Converts a file to a base64 string.
- */
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = error => reject(error);
-  });
-};
-
-/**
- * Generates an image using imagen-4.0-generate-001.
- */
-export const generateImage = async (prompt: string, aspectRatio: AspectRatio): Promise<string> => {
-  try {
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt: prompt,
-      config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/png',
-        aspectRatio: aspectRatio,
-      },
-    });
-    
-    if (response.generatedImages && response.generatedImages.length > 0) {
-      const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-      return `data:image/png;base64,${base64ImageBytes}`;
-    }
-    throw new Error('No se generaron imágenes.');
-  } catch (error) {
-    console.error('Error generando imagen:', error);
-    throw new Error('No se pudo generar la imagen.');
-  }
-};
-
-
-/**
- * Analyzes an image using gemini-2.5-flash.
- */
-export const analyzeImage = async (file: File): Promise<string> => {
-    const base64Data = await fileToBase64(file);
-    const imagePart = {
-        inlineData: {
-            mimeType: file.type,
-            data: base64Data,
-        },
-    };
-    const textPart = {
-        text: 'Describe esta imagen en detalle para una persona ciega. Sé muy específico sobre los objetos, colores, composición y cualquier texto visible.'
-    };
+export const generateImage = async (prompt: string, aspectRatio: AspectRatio): Promise<string | null> => {
+    const ai = getAi();
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [imagePart, textPart] },
+        const response = await ai.models.generateImages({
+            model: 'imagen-4.0-generate-001',
+            prompt: prompt,
+            config: {
+                numberOfImages: 1,
+                outputMimeType: 'image/jpeg',
+                aspectRatio: aspectRatio,
+            },
         });
-        return response.text;
+
+        const base64ImageBytes = response.generatedImages[0].image.imageBytes;
+        if (base64ImageBytes) {
+            return `data:image/jpeg;base64,${base64ImageBytes}`;
+        }
+        return null;
     } catch (error) {
-        console.error('Error analizando la imagen:', error);
-        throw new Error('No se pudo analizar la imagen.');
+        console.error("Error generating image:", error);
+        return null;
     }
 };
 
-/**
- * Edits an image using gemini-2.5-flash-image.
- */
-export const editImage = async (prompt: string, file: File): Promise<string> => {
-    const base64Data = await fileToBase64(file);
-    const imagePart = {
-        inlineData: {
-            data: base64Data,
-            mimeType: file.type,
-        },
-    };
-    const textPart = { text: prompt };
+export const editImage = async (prompt: string, images: { imageData: string; mimeType: string }[]): Promise<string | null> => {
+    const ai = getAi();
+    if (images.length === 0) {
+        console.error("No images provided for editing.");
+        return null;
+    }
+
     try {
+        const imageParts = images.map(image => ({
+            inlineData: {
+                data: image.imageData.split(',')[1],
+                mimeType: image.mimeType,
+            },
+        }));
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image',
-            contents: { parts: [imagePart, textPart] },
+            contents: {
+                parts: [
+                    ...imageParts,
+                    {
+                        text: prompt,
+                    },
+                ],
+            },
             config: {
                 responseModalities: [Modality.IMAGE],
             },
         });
-
         for (const part of response.candidates[0].content.parts) {
             if (part.inlineData) {
                 const base64ImageBytes: string = part.inlineData.data;
                 return `data:image/png;base64,${base64ImageBytes}`;
             }
         }
-        throw new Error('No se recibió ninguna imagen editada.');
-
+        return null;
     } catch (error) {
-        console.error('Error editando la imagen:', error);
-        throw new Error('No se pudo editar la imagen.');
+        console.error("Error editing image:", error);
+        return null;
     }
 };
 
-/**
- * Generates a text response for the chatbot.
- */
-export const generateChatResponse = async (prompt: string): Promise<string> => {
+export const describeImage = async (imageData: string, mimeType: string): Promise<string | null> => {
+    const ai = getAi();
+    const base64ImageData = imageData.split(',')[1];
     try {
-        const response = await ai.models.generateContent({
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                systemInstruction: 'Eres un bot de ayuda para una aplicación de creación de imágenes para personas con discapacidad visual. Responde de manera concisa y clara a las preguntas sobre cómo usar la aplicación.',
+            contents: {
+                parts: [
+                    {
+                        inlineData: {
+                            data: base64ImageData,
+                            mimeType: mimeType,
+                        },
+                    },
+                    {
+                        text: "Describe esta imagen en español para una persona ciega. Sé conciso pero descriptivo.",
+                    },
+                ]
             },
         });
         return response.text;
     } catch (error) {
-        console.error('Error en el chat de ayuda:', error);
-        throw new Error('No se pudo obtener una respuesta del bot de ayuda.');
+        console.error("Error describing image:", error);
+        return null;
     }
 };
 
-/**
- * Converts text to speech using gemini-2.5-flash-preview-tts.
- */
-export const textToSpeech = async (text: string, voiceName: string): Promise<string | null> => {
+export const generateFaqResponse = async (question: string, history: ChatMessage[]): Promise<string> => {
+    const ai = getAi();
+    
+    const geminiHistory: Content[] = history.map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.text }],
+    }));
+
+    const chat: Chat = ai.chats.create({
+        model: 'gemini-2.5-flash',
+        history: geminiHistory,
+        config: {
+            systemInstruction: 'Eres un asistente de preguntas frecuentes para una aplicación de creación y edición de imágenes con IA. Responde solo preguntas sobre cómo usar la aplicación. Si te preguntan algo más, amablemente di que no puedes responder a eso. Responde en español.',
+        }
+    });
+
+    const result = await chat.sendMessage({ message: question });
+    return result.text;
+};
+
+export const generateTextToSpeech = async (text: string, voice: string): Promise<string | null> => {
+    const ai = getAi();
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-preview-tts',
-            contents: [{ parts: [{ text: text }] }],
+            model: "gemini-2.5-flash-preview-tts",
+            contents: [{ parts: [{ text }] }],
             config: {
                 responseModalities: [Modality.AUDIO],
                 speechConfig: {
                     voiceConfig: {
-                        prebuiltVoiceConfig: { voiceName: voiceName },
+                        prebuiltVoiceConfig: { voiceName: voice },
                     },
                 },
             },
         });
         const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        return base64Audio ?? null;
+        return base64Audio || null;
     } catch (error) {
-        console.error('Error en la conversión de texto a voz:', error);
-        throw new Error('No se pudo convertir el texto a voz.');
+        console.error("Error generating text to speech:", error);
+        return null;
     }
+};
+
+// FIX: Add createLiveSession function to handle live conversations.
+export const createLiveSession = (callbacks: LiveSessionCallbacks, voice: string): Promise<LiveSession> => {
+    const ai = getAi();
+    return ai.live.connect({
+        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+        callbacks,
+        config: {
+            responseModalities: [Modality.AUDIO],
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
+            speechConfig: {
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+            },
+            systemInstruction: 'Eres un asistente amigable y útil. Responde en español.',
+        },
+    });
 };

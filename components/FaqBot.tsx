@@ -1,110 +1,112 @@
-
 import React, { useState, useRef, useEffect } from 'react';
+import { generateFaqResponse } from '../services/geminiService';
 import { FAQ_DATA } from '../constants';
 import { ChatMessage } from '../types';
-import { generateChatResponse } from '../services/geminiService';
 import Spinner from './Spinner';
 import { PaperAirplaneIcon } from './Icons';
 
-const FaqBot: React.FC = () => {
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [userInput, setUserInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+interface FaqBotProps {}
 
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [chatHistory]);
+const FaqBot: React.FC<FaqBotProps> = () => {
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmedInput = userInput.trim();
-    if (!trimmedInput || isLoading) return;
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
-    const newHistory: ChatMessage[] = [...chatHistory, { role: 'user', text: trimmedInput }];
-    setChatHistory(newHistory);
-    setUserInput('');
-    setIsLoading(true);
+    useEffect(scrollToBottom, [messages]);
 
-    try {
-      const modelResponse = await generateChatResponse(trimmedInput);
-      setChatHistory([...newHistory, { role: 'model', text: modelResponse }]);
-    } catch (error) {
-      setChatHistory([...newHistory, { role: 'model', text: 'Lo siento, no puedo responder en este momento. Por favor, intenta de nuevo.' }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const handleSend = async () => {
+        if (!input.trim()) return;
+        const userMessage: ChatMessage = { role: 'user', text: input };
+        setMessages(prev => [...prev, userMessage]);
+        setInput('');
+        setIsLoading(true);
 
-  return (
-    <div className="grid md:grid-cols-2 gap-12">
-      <section aria-labelledby="faq-title">
-        <h2 id="faq-title" className="text-3xl font-bold mb-4 text-indigo-400">Preguntas Frecuentes</h2>
-        <div className="space-y-4">
-          {FAQ_DATA.map((item, index) => (
-            <details key={index} className="bg-gray-800 rounded-lg p-4 group">
-              <summary className="font-semibold cursor-pointer list-none flex justify-between items-center">
-                {item.question}
-                <span className="transform transition-transform duration-200 group-open:rotate-180">▼</span>
-              </summary>
-              <p className="mt-2 text-gray-300">{item.answer}</p>
-            </details>
-          ))}
-        </div>
-      </section>
+        try {
+            const history = [...messages, userMessage];
+            const responseText = await generateFaqResponse(input, history);
+            const modelMessage: ChatMessage = { role: 'model', text: responseText };
+            setMessages(prev => [...prev, modelMessage]);
+        } catch (error) {
+            console.error("Error with FaqBot:", error);
+            const errorMessage: ChatMessage = { role: 'model', text: 'Lo siento, he encontrado un problema. Por favor, inténtalo de nuevo.' };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handleFaqClick = (question: string) => {
+        setInput(question);
+    };
 
-      <section aria-labelledby="chatbot-title" className="flex flex-col">
-        <h2 id="chatbot-title" className="text-3xl font-bold mb-4 text-indigo-400">Bot de Ayuda</h2>
-        <p className="mb-4 text-gray-300">¿Tienes otra pregunta? Escríbela aquí. Este chat es solo de texto.</p>
-        <div className="flex-grow flex flex-col bg-gray-800 border border-gray-700 rounded-lg overflow-hidden">
-          <div ref={chatContainerRef} className="flex-grow p-4 space-y-4 overflow-y-auto">
-            {chatHistory.map((msg, index) => (
-              <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl ${
-                    msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-200'
-                  }`}
-                >
-                  <p>{msg.text}</p>
+    return (
+        <section aria-labelledby="faq-title">
+            <h1 id="faq-title" className="text-3xl font-bold mb-6 text-center">Asistente de Ayuda (FAQ)</h1>
+            <div className="bg-gray-800 rounded-lg shadow-lg max-w-4xl mx-auto flex flex-col h-[70vh]">
+                <div className="p-4 border-b border-gray-700">
+                    <h2 className="text-xl font-semibold">Preguntas Frecuentes</h2>
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {FAQ_DATA.map((item) => (
+                            <button
+                                key={item.question}
+                                onClick={() => handleFaqClick(item.question)}
+                                className="text-left text-sm text-blue-400 hover:underline p-2 rounded-md hover:bg-gray-700 transition"
+                            >
+                                {item.question}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                  <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-xl bg-gray-700 text-gray-200 flex items-center">
-                      <Spinner/> <span className="ml-2">Pensando...</span>
-                  </div>
-              </div>
-            )}
-          </div>
-          <form onSubmit={handleSubmit} className="p-4 bg-gray-900 border-t border-gray-700">
-            <div className="flex items-center gap-2">
-              <label htmlFor="chat-input" className="sr-only">Escribe tu pregunta</label>
-              <input
-                id="chat-input"
-                type="text"
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder="Escribe tu pregunta..."
-                className="flex-grow bg-gray-700 border border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !userInput.trim()}
-                className="p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                aria-label="Enviar mensaje"
-              >
-                <PaperAirplaneIcon />
-              </button>
+                <div className="flex-grow overflow-y-auto p-4 flex flex-col space-y-4">
+                    {messages.map((msg, index) => (
+                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-xl ${
+                                msg.role === 'user' 
+                                    ? 'bg-blue-600 text-white rounded-br-none' 
+                                    : 'bg-gray-700 text-gray-200 rounded-bl-none'
+                            }`}>
+                                <p className="whitespace-pre-wrap">{msg.text}</p>
+                            </div>
+                        </div>
+                    ))}
+                    {isLoading && (
+                         <div className="flex justify-start">
+                            <div className="bg-gray-700 text-gray-200 rounded-xl rounded-bl-none px-4 py-2">
+                                <Spinner />
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+                <div className="p-4 border-t border-gray-700">
+                    <div className="flex items-center space-x-2">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSend()}
+                            placeholder="Haz una pregunta sobre la app..."
+                            className="flex-grow bg-gray-700 border border-gray-600 rounded-full py-2 px-4 focus:ring-blue-500 focus:border-blue-500"
+                            disabled={isLoading}
+                        />
+                        <button
+                            onClick={handleSend}
+                            disabled={isLoading || !input.trim()}
+                            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Enviar pregunta"
+                        >
+                            <PaperAirplaneIcon />
+                        </button>
+                    </div>
+                </div>
             </div>
-          </form>
-        </div>
-      </section>
-    </div>
-  );
+        </section>
+    );
 };
 
 export default FaqBot;
