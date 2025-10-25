@@ -76,8 +76,8 @@ const FaqBot: React.FC<FaqBotProps> = () => {
 
     return (
         <section aria-labelledby="faq-title">
-            <h1 id="faq-title" className="text-3xl font-bold mb-6 text-center">Asistente de Ayuda (FAQ)</h1>
-            <div className="bg-gray-800 rounded-lg shadow-lg max-w-4xl mx-auto flex flex-col h-[70vh]">
+            <h1 id="faq-title" className="text-2xl md:text-3xl font-bold mb-6 text-center">Asistente de Ayuda (FAQ)</h1>
+            <div className="bg-gray-800 rounded-lg shadow-lg max-w-4xl mx-auto flex flex-col min-h-[70vh]">
                 <div className="p-4 border-b border-gray-700">
                      <div className="flex justify-between items-center mb-3">
                         <h2 className="text-xl font-semibold">Preguntas Frecuentes</h2>
@@ -123,7 +123,7 @@ const FaqBot: React.FC<FaqBotProps> = () => {
                     )}
                     <div ref={messagesEndRef} />
                 </div>
-                <div className="p-4 border-t border-gray-700">
+                <div className="p-4 border-t border-gray-700 mt-auto">
                     <div className="flex items-center space-x-2">
                         <input
                             type="text"

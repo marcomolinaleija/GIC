@@ -52,12 +52,12 @@ const ImageCreator: React.FC<ImageCreatorProps> = () => {
 
     return (
         <section aria-labelledby="creator-title">
-            <h1 id="creator-title" className="text-3xl font-bold mb-6 text-center">Creador de Imágenes con IA</h1>
+            <h1 id="creator-title" className="text-2xl md:text-3xl font-bold mb-6 text-center">Creador de Imágenes con IA</h1>
             <div role="status" aria-live="polite" className="sr-only">
                 {statusMessage}
             </div>
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-gray-800 p-4 md:p-6 rounded-lg shadow-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                         <div className="mb-4">
                             <label htmlFor="prompt-input" className="block text-sm font-medium text-gray-300 mb-2">
@@ -95,7 +95,7 @@ const ImageCreator: React.FC<ImageCreatorProps> = () => {
                             {isLoading ? <><Spinner /> Generando...</> : 'Generar Imagen'}
                         </button>
                     </div>
-                    <div className="flex items-center justify-center bg-gray-700 rounded-lg min-h-[300px]">
+                    <div className="flex items-center justify-center bg-gray-700 rounded-lg min-h-[300px] md:min-h-[400px]">
                         {isLoading && <Spinner />}
                         {error && <p className="text-red-500 text-center p-4">{error}</p>}
                         {generatedImage && (

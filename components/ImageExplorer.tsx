@@ -125,19 +125,19 @@ const ImageExplorer: React.FC = () => {
 
     return (
         <section aria-labelledby="explorer-title">
-            <h1 id="explorer-title" className="text-3xl font-bold mb-6 text-center">Explorador Visual Interactivo</h1>
+            <h1 id="explorer-title" className="text-2xl md:text-3xl font-bold mb-6 text-center">Explorador Visual Interactivo</h1>
              <div role="status" aria-live="polite" className="sr-only">
                 {statusMessage}
             </div>
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+            <div className="bg-gray-800 p-4 md:p-6 rounded-lg shadow-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Image Column */}
                     <div className="flex flex-col items-center justify-center space-y-4">
-                        <div className="w-full h-80 bg-gray-700 rounded-lg flex items-center justify-center">
+                        <div className="w-full h-64 md:h-80 bg-gray-700 rounded-lg flex items-center justify-center">
                             {image ? (
                                 <img src={image.dataUrl} alt="Imagen subida por el usuario" className="max-w-full max-h-full object-contain rounded-lg" />
                             ) : (
-                                <p className="text-gray-400">Sube una imagen para comenzar.</p>
+                                <p className="text-gray-400 p-4 text-center">Sube una imagen para comenzar.</p>
                             )}
                         </div>
                         <button
@@ -155,7 +155,7 @@ const ImageExplorer: React.FC = () => {
                         />
                     </div>
                     {/* Chat Column */}
-                    <div className="flex flex-col bg-gray-900 rounded-lg h-[50vh] md:h-auto">
+                    <div className="flex flex-col bg-gray-900 rounded-lg h-[60vh] md:h-auto">
                         <div className="p-4 border-b border-gray-700 flex justify-between items-center">
                             <h2 className="text-xl font-semibold">Conversación</h2>
                             <button
@@ -188,7 +188,7 @@ const ImageExplorer: React.FC = () => {
                             )}
                             <div ref={messagesEndRef} />
                         </div>
-                        <div className="p-4 border-t border-gray-700">
+                        <div className="p-4 border-t border-gray-700 mt-auto">
                             <div className="flex items-center space-x-2">
                                 <input
                                     type="text"

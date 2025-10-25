@@ -139,11 +139,11 @@ const ImageEditor: React.FC<ImageEditorProps> = () => {
     
     return (
         <section aria-labelledby="editor-title">
-            <h1 id="editor-title" className="text-3xl font-bold mb-6 text-center">Editor de Imágenes con IA</h1>
+            <h1 id="editor-title" className="text-2xl md:text-3xl font-bold mb-6 text-center">Editor de Imágenes con IA</h1>
             <div role="status" aria-live="polite" className="sr-only">
                 {statusMessage}
             </div>
-            <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+            <div className="bg-gray-800 p-4 md:p-6 rounded-lg shadow-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Input Column */}
                     <div className="flex flex-col space-y-4">
@@ -212,7 +212,7 @@ const ImageEditor: React.FC<ImageEditorProps> = () => {
                         </button>
                     </div>
                     {/* Output Column */}
-                    <div className="flex items-center justify-center bg-gray-700 rounded-lg min-h-[300px]">
+                    <div className="flex items-center justify-center bg-gray-700 rounded-lg min-h-[300px] md:min-h-[400px]">
                         {isLoading && <Spinner />}
                         {error && <p className="text-red-500 text-center p-4 whitespace-pre-line">{error}</p>}
                         {editedImage && (

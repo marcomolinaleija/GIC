@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const PaperAirplaneIcon: React.FC = () => (
@@ -14,7 +13,7 @@ export const DownloadIcon: React.FC = () => (
 );
 
 export const CloseIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
 );
@@ -25,7 +24,6 @@ export const TrashIcon: React.FC = () => (
     </svg>
 );
 
-// FIX: Add missing icons for LiveConversation component.
 export const MicrophoneIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm-1 4a4 4 0 108 0V4a4 4 0 10-8 0v4zm1 5a1 1 0 011-1h2a1 1 0 110 2H8a1 1 0 01-1-1zm-4 0a1 1 0 011-1h.083A6.02 6.02 0 0010 17.917 6.02 6.02 0 0014.917 13H15a1 1 0 110 2h-.083A8.002 8.002 0 0110 19.917 8.002 8.002 0 015.083 15H5a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -41,5 +39,11 @@ export const StopCircleIcon: React.FC = () => (
 export const PlayCircleIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+    </svg>
+);
+
+export const MenuIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
     </svg>
 );
