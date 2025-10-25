@@ -1,6 +1,4 @@
-
-
-import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveCallbacks } from "@google/genai";
+import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content } from "@google/genai";
 import { AspectRatio, ChatMessage } from "../types";
 import { APP_CONTEXT_DATA } from "../constants";
 
@@ -156,22 +154,4 @@ PREGUNTA DEL USUARIO:
 
     const result = await chat.sendMessage({ message: fullPrompt });
     return result.text;
-};
-
-// FIX: Add createLiveSession function to handle live conversations
-export const createLiveSession = (callbacks: LiveCallbacks, selectedVoice: string): Promise<LiveSession> => {
-    const ai = getAi();
-    return ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        callbacks,
-        config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
-            },
-            inputAudioTranscription: {},
-            outputAudioTranscription: {},
-            systemInstruction: 'Eres un asistente amigable y útil. Responde en español.',
-        },
-    });
 };
