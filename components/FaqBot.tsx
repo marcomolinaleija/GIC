@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { generateFaqResponse } from '../services/geminiService';
-import { FAQ_DATA } from '../constants';
+import { FAQ_SUGGESTIONS } from '../constants';
 import { ChatMessage } from '../types';
 import Spinner from './Spinner';
 import { PaperAirplaneIcon, TrashIcon } from './Icons';
@@ -91,7 +91,7 @@ const FaqBot: React.FC<FaqBotProps> = () => {
                         </button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {FAQ_DATA.map((item) => (
+                        {FAQ_SUGGESTIONS.map((item) => (
                             <button
                                 key={item.question}
                                 onClick={() => handleFaqClick(item.question)}

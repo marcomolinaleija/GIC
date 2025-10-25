@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const PaperAirplaneIcon: React.FC = () => (
@@ -24,11 +25,10 @@ export const TrashIcon: React.FC = () => (
     </svg>
 );
 
-
-// FIX: Add missing icons for the LiveConversation component.
+// FIX: Add missing icons for LiveConversation component.
 export const MicrophoneIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93V17a1 1 0 11-2 0v-2.07A5 5 0 014 10V8a1 1 0 012 0v2a3 3 0 006 0V8a1 1 0 012 0v2a5 5 0 01-3 4.93z" clipRule="evenodd" />
+        <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm-1 4a4 4 0 108 0V4a4 4 0 10-8 0v4zm1 5a1 1 0 011-1h2a1 1 0 110 2H8a1 1 0 01-1-1zm-4 0a1 1 0 011-1h.083A6.02 6.02 0 0010 17.917 6.02 6.02 0 0014.917 13H15a1 1 0 110 2h-.083A8.002 8.002 0 0110 19.917 8.002 8.002 0 015.083 15H5a1 1 0 01-1-1z" clipRule="evenodd" />
     </svg>
 );
 

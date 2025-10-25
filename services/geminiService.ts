@@ -1,5 +1,7 @@
-import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveServerMessage } from "@google/genai";
+
+import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveSessionCallbacks } from "@google/genai";
 import { AspectRatio, ChatMessage } from "../types";
+import { APP_CONTEXT_DATA } from "../constants";
 
 const getAi = () => {
     // Per guidelines, create a new instance before API calls to use the latest key.
@@ -134,37 +136,41 @@ export const generateFaqResponse = async (question: string, history: ChatMessage
         parts: [{ text: msg.text }],
     }));
 
+    // This is the core change: providing the full app context to the model.
+    const fullPrompt = `
+CONTEXTO DE LA APLICACIÓN:
+${APP_CONTEXT_DATA}
+---
+PREGUNTA DEL USUARIO:
+"${question}"
+`;
+
     const chat: Chat = ai.chats.create({
         model: 'gemini-2.5-flash',
         history: geminiHistory,
         config: {
-            systemInstruction: 'Eres un asistente de preguntas frecuentes para una aplicación de creación y edición de imágenes con IA. Responde solo preguntas sobre cómo usar la aplicación. Si te preguntan algo más, amablemente di que no puedes responder a eso. Responde en español.',
+            systemInstruction: 'Eres un asistente de ayuda. Usa el CONTEXTO DE LA APLICACIÓN para responder a la pregunta del usuario. Responde de manera concisa y directa, basándote únicamente en el contexto proporcionado. Si la pregunta no se puede responder con el contexto, di amablemente que solo puedes responder preguntas sobre cómo usar esta aplicación. Responde en español.',
         }
     });
 
-    const result = await chat.sendMessage({ message: question });
+    const result = await chat.sendMessage({ message: fullPrompt });
     return result.text;
 };
 
-// FIX: Implement the missing 'createLiveSession' function for real-time conversation.
-export const createLiveSession = (callbacks: {
-    onopen: () => void;
-    onmessage: (message: LiveServerMessage) => void;
-    onerror: (e: any) => void;
-    onclose: () => void;
-}, voiceName: string): Promise<LiveSession> => {
+// FIX: Implement and export `createLiveSession` for real-time conversation.
+export const createLiveSession = (callbacks: LiveSessionCallbacks, voiceName: string): Promise<LiveSession> => {
     const ai = getAi();
     return ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        callbacks: callbacks,
+        callbacks,
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } },
+                voiceConfig: { prebuiltVoiceConfig: { voiceName } },
             },
-            outputAudioTranscription: {},
             inputAudioTranscription: {},
-            systemInstruction: 'Eres un asistente de IA conversacional amigable y útil. Responde en español.',
+            outputAudioTranscription: {},
+            systemInstruction: 'Eres un asistente amigable y útil. Responde en español.',
         },
     });
 };
