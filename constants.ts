@@ -1,12 +1,4 @@
-import { FaqItem, VoiceOption } from './types';
-
-export const PREBUILT_VOICES: VoiceOption[] = [
-    { name: 'Kore', label: 'Kore (Femenina)' },
-    { name: 'Puck', label: 'Puck (Masculina)' },
-    { name: 'Charon', label: 'Charon (Masculina)' },
-    { name: 'Fenrir', label: 'Fenrir (Femenina)' },
-    { name: 'Zephyr', label: 'Zephyr (Femenina)' },
-];
+import { FaqItem } from './types';
 
 export const FAQ_DATA: FaqItem[] = [
   {

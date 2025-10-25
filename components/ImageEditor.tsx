@@ -4,11 +4,9 @@ import Spinner from './Spinner';
 import { DownloadIcon, CloseIcon } from './Icons';
 import { UploadedImage } from '../types';
 
-interface ImageEditorProps {
-    speak: (text: string) => void;
-}
+interface ImageEditorProps {}
 
-const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
+const ImageEditor: React.FC<ImageEditorProps> = () => {
     const [prompt, setPrompt] = useState('');
     const [originalImages, setOriginalImages] = useState<UploadedImage[]>([]);
     const [editedImage, setEditedImage] = useState<string | null>(null);
@@ -16,6 +14,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
     const [isDescribing, setIsDescribing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [description, setDescription] = useState<string | null>(null);
+    const [statusMessage, setStatusMessage] = useState<string>('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,7 +26,6 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
 
         const filesArray = Array.from(files);
 
-        // FIX: Explicitly type 'file' as 'File' to prevent TypeScript from inferring it as 'unknown'.
         const imageFiles = filesArray.filter((file: File) => {
             if (!file.type.startsWith('image/')) {
                 const newError = `${file.name} no es un archivo de imagen válido.`;
@@ -42,7 +40,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
         let processedCount = 0;
         const currentImages = [...originalImages];
 
-        imageFiles.forEach(file => {
+        // FIX: Explicitly type 'file' as 'File' to resolve type inference issues in the loop.
+        imageFiles.forEach((file: File) => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const dataUrl = e.target?.result as string;
@@ -72,22 +71,22 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
     const describeSingleImage = async (image: UploadedImage) => {
         setDescription(null);
         setIsDescribing(true);
-        speak("Analizando la imagen subida.");
+        setStatusMessage("Analizando la imagen subida.");
         try {
             const descriptionResult = await describeImage(image.dataUrl, image.mimeType);
             if (descriptionResult) {
                 setDescription(descriptionResult);
-                speak("Descripción de la imagen lista.");
+                setStatusMessage("Descripción de la imagen lista.");
             } else {
                 const descError = "No se pudo obtener una descripción para la imagen.";
                 setDescription(descError);
-                speak(descError);
+                setStatusMessage(descError);
             }
         } catch (err) {
             console.error("Error describing image:", err);
             const descError = "Ocurrió un error al analizar la imagen.";
             setDescription(descError);
-            speak(descError);
+            setStatusMessage(descError);
         } finally {
             setIsDescribing(false);
         }
@@ -115,7 +114,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
         setIsLoading(true);
         setError(null);
         setEditedImage(null);
-        speak("Aplicando tus cambios a las imágenes.");
+        setStatusMessage("Aplicando tus cambios a las imágenes.");
         try {
             const imagesToProcess = originalImages.map(img => ({
                 imageData: img.dataUrl,
@@ -124,7 +123,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
             const imageUrl = await editImage(prompt, imagesToProcess);
             if (imageUrl) {
                 setEditedImage(imageUrl);
-                speak("¡Tu imagen ha sido editada exitosamente!");
+                setStatusMessage("¡Tu imagen ha sido editada exitosamente!");
             } else {
                 throw new Error("No se recibió ninguna imagen editada.");
             }
@@ -132,7 +131,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
             console.error(err);
             const errorMessage = "Lo siento, ha ocurrido un error al editar la imagen. Por favor, inténtalo de nuevo.";
             setError(errorMessage);
-            speak(errorMessage);
+            setStatusMessage(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -141,6 +140,9 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ speak }) => {
     return (
         <section aria-labelledby="editor-title">
             <h1 id="editor-title" className="text-3xl font-bold mb-6 text-center">Editor de Imágenes con IA</h1>
+            <div role="status" aria-live="polite" className="sr-only">
+                {statusMessage}
+            </div>
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Input Column */}

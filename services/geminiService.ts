@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveSessionCallbacks } from "@google/genai";
+import { GoogleGenAI, Modality, GenerateContentResponse, Chat, Content, LiveSession, LiveServerMessage } from "@google/genai";
 import { AspectRatio, ChatMessage } from "../types";
 
 const getAi = () => {
@@ -119,43 +119,25 @@ export const generateFaqResponse = async (question: string, history: ChatMessage
     return result.text;
 };
 
-export const generateTextToSpeech = async (text: string, voice: string): Promise<string | null> => {
-    const ai = getAi();
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash-preview-tts",
-            contents: [{ parts: [{ text }] }],
-            config: {
-                responseModalities: [Modality.AUDIO],
-                speechConfig: {
-                    voiceConfig: {
-                        prebuiltVoiceConfig: { voiceName: voice },
-                    },
-                },
-            },
-        });
-        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        return base64Audio || null;
-    } catch (error) {
-        console.error("Error generating text to speech:", error);
-        return null;
-    }
-};
-
-// FIX: Add createLiveSession function to handle live conversations.
-export const createLiveSession = (callbacks: LiveSessionCallbacks, voice: string): Promise<LiveSession> => {
+// FIX: Implement the missing 'createLiveSession' function for real-time conversation.
+export const createLiveSession = (callbacks: {
+    onopen: () => void;
+    onmessage: (message: LiveServerMessage) => void;
+    onerror: (e: any) => void;
+    onclose: () => void;
+}, voiceName: string): Promise<LiveSession> => {
     const ai = getAi();
     return ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-        callbacks,
+        callbacks: callbacks,
         config: {
             responseModalities: [Modality.AUDIO],
-            inputAudioTranscription: {},
-            outputAudioTranscription: {},
             speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } },
             },
-            systemInstruction: 'Eres un asistente amigable y útil. Responde en español.',
+            outputAudioTranscription: {},
+            inputAudioTranscription: {},
+            systemInstruction: 'Eres un asistente de IA conversacional amigable y útil. Responde en español.',
         },
     });
 };

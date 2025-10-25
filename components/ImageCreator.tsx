@@ -4,9 +4,7 @@ import Spinner from './Spinner';
 import { DownloadIcon } from './Icons';
 import { AspectRatio } from '../types';
 
-interface ImageCreatorProps {
-    speak: (text: string) => void;
-}
+interface ImageCreatorProps {}
 
 const aspectRatios: { value: AspectRatio, label: string }[] = [
     { value: '1:1', label: 'Cuadrado (1:1)' },
@@ -16,12 +14,13 @@ const aspectRatios: { value: AspectRatio, label: string }[] = [
     { value: '3:4', label: 'Vertical (3:4)' },
 ];
 
-const ImageCreator: React.FC<ImageCreatorProps> = ({ speak }) => {
+const ImageCreator: React.FC<ImageCreatorProps> = () => {
     const [prompt, setPrompt] = useState('');
     const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
     const [generatedImage, setGeneratedImage] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [statusMessage, setStatusMessage] = useState<string>('');
 
     const handleGenerate = async () => {
         if (!prompt.trim()) {
@@ -31,13 +30,13 @@ const ImageCreator: React.FC<ImageCreatorProps> = ({ speak }) => {
         setIsLoading(true);
         setError(null);
         setGeneratedImage(null);
-        speak("Generando tu imagen. Por favor, espera.");
+        setStatusMessage("Generando tu imagen. Por favor, espera.");
         
         try {
             const imageUrl = await generateImage(prompt, aspectRatio);
             if (imageUrl) {
                 setGeneratedImage(imageUrl);
-                speak("¡Tu imagen ha sido creada exitosamente!");
+                setStatusMessage("¡Tu imagen ha sido creada exitosamente!");
             } else {
                 throw new Error("No se recibió ninguna imagen.");
             }
@@ -45,7 +44,7 @@ const ImageCreator: React.FC<ImageCreatorProps> = ({ speak }) => {
             console.error(err);
             const errorMessage = "Lo siento, ha ocurrido un error al generar la imagen. Por favor, inténtalo de nuevo.";
             setError(errorMessage);
-            speak(errorMessage);
+            setStatusMessage(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -54,6 +53,9 @@ const ImageCreator: React.FC<ImageCreatorProps> = ({ speak }) => {
     return (
         <section aria-labelledby="creator-title">
             <h1 id="creator-title" className="text-3xl font-bold mb-6 text-center">Creador de Imágenes con IA</h1>
+            <div role="status" aria-live="polite" className="sr-only">
+                {statusMessage}
+            </div>
             <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
